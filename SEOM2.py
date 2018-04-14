@@ -130,4 +130,6 @@ if __name__ == '__main__':
                 demand[i][j] = int(val)
             i += 1
 
-    TransitGraph(nodes, demand, travel_times)
+    min_route_len = input('Input minimum route length: ')
+    max_route_len = input('Input maximum route length: ')
+    TransitGraph(nodes, demand, travel_times, min_route_len, max_route_len)
