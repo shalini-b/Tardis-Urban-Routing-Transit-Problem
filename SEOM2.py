@@ -9,45 +9,29 @@ class Node(object):
         self.neighbours = []
 
 
-class Route(object):
-    def __init__(self, node):
-        self.start = node
-        self.end = node
-        self.path_nodes = [node]
-
-    def fetch_next_nodes(self, cur_node):
-        options = []
-        for n in cur_node.neighbours:
-            if n not in self.path_nodes:
-                options.append(n)
-        return options
-
-    def reverse_route(self):
-        # TODO: do we have to reverse path too?
-        self.start, self.end = self.end, self.start
-
-
-class TransitGraph(object):
-    def __init__(self, nodes, demand, travel_times, min_route_len, max_route_len):
-        # NOTE: Do not change the order of nodes in this list
-        self.nodes = nodes
-        self.num_nodes = len(nodes)
-        self.demand = demand
-        self.travel_times = travel_times
-        # Contains IDs of chosen nodes till now
-        self.chosen = []
-        # Maximum and minimum number of routes in route set
+class RouteSet(object):
+    def __init__(
+            self,
+            num_routes,
+            min_route_len,
+            max_route_len,
+            num_nodes):
+        self.num_routes = num_routes
         self.min_route_len = min_route_len
         self.max_route_len = max_route_len
+        self.num_nodes = num_nodes
+        # Contains IDs of chosen nodes till now
+        self.chosen = []
         self.routes = []
+        self.generate_routeset()
 
-    def generate_routeset(self, num_routes):
+    def generate_routeset(self):
         # Create a route on every iteration
-        for count in range(num_routes):
+        for count in range(self.num_routes):
             # Select random size for route
             route_len = random.randrange(self.min_route_len, self.max_route_len)
 
-            if count == 1:
+            if count == 0:
                 # Select the starting node for the first route
                 cur_node = nodes[random.randrange(size)]
             else:
@@ -71,18 +55,64 @@ class TransitGraph(object):
                 else:
                     next_node = random.choice(next_nodes)
                     route.path_nodes.append(next_node)
-                    self.chosen.append(next_node)
+                    self.chosen.append(next_node.id)
                     cur_node = next_node
 
         if len(self.chosen) < self.num_nodes:
             res = self.repair()
-            if res:
-                return self.routes
-            else:
-                return []
+            return self.routes if res else []
 
     def repair(self):
-        pass
+        return
+
+
+class Route(object):
+    def __init__(self, node):
+        self.start = node
+        self.end = node
+        self.path_nodes = [node]
+
+    def fetch_next_nodes(self, cur_node):
+        options = []
+        for n in cur_node.neighbours:
+            # TODO: Check if this works
+            if n not in self.path_nodes:
+                options.append(n)
+        return options
+
+    def reverse_route(self):
+        # TODO: do we have to reverse path too?
+        self.start, self.end = self.end, self.start
+
+
+class TransitGraph(object):
+    def __init__(
+            self,
+            nodes,
+            demand,
+            travel_times):
+        # NOTE: Do not change the order of nodes in this list
+        self.nodes = nodes
+        self.num_nodes = len(nodes)
+        self.demand = demand
+        self.travel_times = travel_times
+        self.routesets = []
+
+    def create_initial_population(
+            self,
+            num_routesets,
+            num_routes,
+            min_route_len,
+            max_route_len):
+        # Create an array of routesets
+        for i in range(num_routesets):
+            self.routesets.append(
+                RouteSet(
+                    num_routes,
+                    min_route_len,
+                    max_route_len,
+                    self.num_nodes)
+            )
 
 
 if __name__ == '__main__':
@@ -92,7 +122,7 @@ if __name__ == '__main__':
         # Number of nodes
         size = int(f.readline().split()[0])
         for id, coords in enumerate(f.readlines()):
-            posx, posy = list(map(int, coords.split()))
+            posx, posy = list(map(float, coords.split()))
             # Populate list of nodes
             nodes.append(Node(id, posx, posy))
 
@@ -130,6 +160,12 @@ if __name__ == '__main__':
                 demand[i][j] = int(val)
             i += 1
 
-    min_route_len = input('Input minimum route length: ')
-    max_route_len = input('Input maximum route length: ')
-    TransitGraph(nodes, demand, travel_times, min_route_len, max_route_len)
+    # Number of routeset combinations
+    num_routesets = int(input('Number of routesets: '))
+    # Number of routes in each routeset
+    num_routes = int(input('Number of routes in each routeset: '))
+    # Maximum and minimum number of routes in route set
+    min_route_len, max_route_len = list(map(int, input('Input minimum and maximum route length: ').split()))
+
+    transit_map = TransitGraph(nodes, demand, travel_times)
+    transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
