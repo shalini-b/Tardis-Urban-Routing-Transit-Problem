@@ -29,12 +29,16 @@ class RouteSet(object):
         self.generate_routeset()
 
     def __eq__(self, other):
+        # Check if number of routes are same in both
         if len(self.routes) != len(other.routes):
             return False
 
+        # Check if the overall nodes in both are same
         if self.chosen != other.chosen:
             return False
 
+        # Check if the individual paths are same in both
+        # by comparing their hashed IDs
         if set(map(lambda x: x.hashed_id, self.routes)) != set(map(lambda x: x.hashed_id, other.routes)):
             return False
 
@@ -145,6 +149,7 @@ class Route(object):
 
     @property
     def hashed_id(self):
+        # Unique ID for the route to identify different variations of it
         return reduce(lambda x, y: x.id + y.id, self.path_nodes)
 
     def fetch_next_nodes(self, cur_node):
