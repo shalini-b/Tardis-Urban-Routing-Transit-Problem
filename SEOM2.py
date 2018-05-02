@@ -214,7 +214,7 @@ class TransitGraph(object):
         # Remove seed_route from parent1 and add to offspring
         p1.swap_routes(offspring, seed_route)
 
-        while len(offspring.routes) < offspring.num_routes:
+        while len(offspring.routes) <= offspring.num_routes:
             if len(offspring.routes) % 2 == 1:
                 # Pick the best route available in P2
                 # which is not present in offspring yet
