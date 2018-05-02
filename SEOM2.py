@@ -1,4 +1,5 @@
 import random
+import copy
 
 
 class Node(object):
@@ -21,9 +22,14 @@ class RouteSet(object):
         self.max_route_len = max_route_len
         self.num_nodes = num_nodes
         # Contains IDs of chosen nodes till now
-        self.chosen = []
+        self.chosen = set()
+        # Contains route objects for this routeset
         self.routes = []
         self.generate_routeset()
+
+    def recalculate_chosen_nodes(self):
+        self.chosen = set()
+        self.chosen.update(route.path_nodes for route in self.routes)
 
     def generate_routeset(self):
         # Create a route on every iteration
@@ -37,10 +43,10 @@ class RouteSet(object):
             else:
                 # Select the starting node for an adjoining route
                 # from the list of chosen nodes to ensure connectivity
-                cur_node = nodes[random.choice(self.chosen)]
+                cur_node = nodes[random.choice(list(self.chosen))]
 
             route = Route(cur_node)
-            self.chosen.append(cur_node.id)
+            self.chosen.add(cur_node.id)
             self.routes.append(route)
 
             route_reversed = False
@@ -58,7 +64,7 @@ class RouteSet(object):
                     # TODO: if we need sequential path nodes even
                     # after reversing, we need reverse path_nodes list too
                     route.append_to_path_end(next_node)
-                    self.chosen.append(next_node.id)
+                    self.chosen.add(next_node.id)
                     cur_node = next_node
 
         if len(self.chosen) < self.num_nodes:
@@ -102,7 +108,17 @@ class RouteSet(object):
                     # TODO: if we need sequential path nodes even
                     # after reversing, we need reverse path_nodes list too
                     rand_route.append_to_path_end(next_node)
-                    self.chosen.append(next_node.id)
+                    self.chosen.add(next_node.id)
+                    count -= 1
+
+    def swap_routes(self, routeset_to_add, target_route):
+        # Add target_route from current one to routeset_to_add
+        routeset_to_add.routes.append(target_route)
+        routeset_to_add.chosen.update(map(lambda x: x.id, target_route.path_nodes))
+
+        # Remove target_route from current one
+        self.routes.remove(target_route)
+        self.recalculate_chosen_nodes()
 
     def repair(self):
         return
@@ -160,7 +176,8 @@ class TransitGraph(object):
                     self.num_nodes)
             )
 
-    def pick_best(self, parent, offspring):
+    @staticmethod
+    def pick_best(parent, offspring):
         best_val = 0
         target = None
 
@@ -168,7 +185,7 @@ class TransitGraph(object):
         for route in parent.routes:
             # Find the number of common nodes between the
             # selected route of parent and the offspring routeset
-            common_nodes_len = len(set(list(map(lambda x: x.id, route.path_nodes)) + offspring.chosen))
+            common_nodes_len = len(set(map(lambda x: x.id, route.path_nodes)).union(offspring.chosen))
 
             if common_nodes_len > 1:
                 route_len = len(route.path_nodes)
@@ -180,7 +197,44 @@ class TransitGraph(object):
         return target
 
     def crossover(self, parent1, parent2):
-        pass
+        # Create a offspring
+        offspring = RouteSet(
+            parent1.num_routes,
+            parent1.min_route_len,
+            parent1.max_route_len,
+            parent1.num_nodes)
+
+        # Take copies of both parents so as to not manipulate them
+        p1 = copy.deepcopy(parent1)
+        p2 = copy.deepcopy(parent2)
+
+        # Choose a random route from parent1 and add it to offspring
+        seed_route = random.choice(p1.routes)
+
+        # Remove seed_route from parent1 and add to offspring
+        p1.swap_routes(offspring, seed_route)
+
+        while len(offspring.routes) <= offspring.num_routes:
+            if len(offspring.routes) % 2 == 1:
+                # Pick the best route available in P2
+                # which is not present in offspring yet
+                best_route = self.pick_best(offspring, p2)
+                while best_route in offspring.routes:
+                    best_route = self.pick_best(offspring, p2)
+
+                # Remove best_route from parent2 and add to offspring
+                p2.swap_routes(offspring, best_route)
+            else:
+                # Pick the best route available in P2
+                # which is not present in offspring yet
+                best_route = self.pick_best(offspring, p1)
+                while best_route in offspring.routes:
+                    best_route = self.pick_best(offspring, p1)
+
+                # Remove best_route from parent1 and add to offspring
+                p1.swap_routes(offspring, best_route)
+
+        return offspring
 
 
 if __name__ == '__main__':
