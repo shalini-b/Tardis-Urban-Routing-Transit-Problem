@@ -48,7 +48,7 @@ class RouteSet(object):
 
     def recalculate_chosen_nodes(self):
         self.chosen = set()
-        self.chosen.update(route.path_nodes for route in self.routes)
+        self.chosen.update([node.id for route in self.routes for node in route.path_nodes])
 
     def generate_routeset(self):
         # Create a route on every iteration
@@ -319,9 +319,8 @@ class TransitGraph(object):
         for route in parent.routes:
             # Find the number of common nodes between the
             # selected route of parent and the offspring routeset
-            common_nodes_len = len(set(map(lambda x: x.id, route.path_nodes)).union(offspring.chosen))
-
-            if common_nodes_len > 1:
+            common_nodes_len = len(set(map(lambda x: x.id, route.path_nodes)).intersection(offspring.chosen))
+            if common_nodes_len >= 1:
                 route_len = len(route.path_nodes)
                 target_len = (route_len - common_nodes_len)/route_len
                 if target_len > best_val:
@@ -347,26 +346,34 @@ class TransitGraph(object):
 
         # Remove seed_route from parent1 and add to offspring
         p1.swap_routes(offspring, seed_route)
-
+        print("DDDDDDDDDDD",offspring.chosen)
         while len(offspring.routes) <= offspring.num_routes:
             if len(offspring.routes) % 2 == 1:
                 # Pick the best route available in P2
                 # which is not present in offspring yet
-                best_route = self.pick_best(offspring, p2)
+                best_route = self.pick_best(p2,offspring)
                 while best_route in offspring.routes:
-                    best_route = self.pick_best(offspring, p2)
-
+                    best_route = self.pick_best(p2,offspring)
+                if best_route:
+                    print("Done")
                 # Remove best_route from parent2 and add to offspring
-                p2.swap_routes(offspring, best_route)
+                    p2.swap_routes(offspring, best_route)
+                else:
+                    print("Dendingi ROOOO")
+                    exit(1)
             else:
                 # Pick the best route available in P2
                 # which is not present in offspring yet
-                best_route = self.pick_best(offspring, p1)
+                best_route = self.pick_best(p1,offspring)
                 while best_route in offspring.routes:
-                    best_route = self.pick_best(offspring, p1)
-
-                # Remove best_route from parent1 and add to offspring
-                p1.swap_routes(offspring, best_route)
+                    best_route = self.pick_best(p1,offspring)
+                if best_route:
+                    print("Done")
+                    # Remove best_route from parent1 and add to offspring
+                    p1.swap_routes(offspring, best_route)
+                else:
+                    print("Dendingi ROOOO")
+                    exit(1)
 
         return offspring
 
@@ -429,8 +436,13 @@ if __name__ == '__main__':
     transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
     for rs in transit_map.routesets:
         rs.generate_shortest_path_pairs()
+    for j in range(1,100):
+        for i in transit_map.routesets:
+            Parent1 = i
+            Parent2 = transit_map.routesets[random.randrange(len(transit_map.routesets))]
+            os = transit_map.crossover(Parent1, Parent2)
+            os.repair()
+            for i in os.routes:
+                print([j.id for j in i.path_nodes])
+            os.generate_shortest_path_pairs()
 
-        for i in rs.routes:
-            print([j.id for j in i.path_nodes])
-        print(travel_times)
-        print(rs.shortest_path_times)
