@@ -57,7 +57,7 @@ class RouteSet(object):
 
         self.passenger_cost = numerator/denominator
 
-    def operator_cost(self):
+    def compute_operator_cost(self):
         _sum = 0
         for route in self.routes:
             for i in range(len(route.path_nodes) - 1):
@@ -270,6 +270,8 @@ class RouteSet(object):
                         # if i & j are in different paths, add 5 as penalty
                         self.shortest_path_times[i][j] = \
                             self.shortest_path_times[i][k] + self.shortest_path_times[k][j] + 5
+        self.compute_operator_cost()
+        self.compute_passenger_cost()
 
 
 class Route(object):
@@ -436,7 +438,8 @@ if __name__ == '__main__':
             for j, val in enumerate(row.split()):
                 if val == 'Inf':
                     val = 9999
-                demand[i][j] = int(val)
+                if val!=9999:
+                    demand[i][j] = int(val)
             i += 1
 
     # Number of routeset combinations
@@ -450,20 +453,94 @@ if __name__ == '__main__':
     transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
     for rs in transit_map.routesets:
         rs.generate_shortest_path_pairs()
-    for j in range(1, 100):
-        for i in transit_map.routesets:
-            Parent1 = i
-            Parent2 = transit_map.routesets[random.randrange(len(transit_map.routesets))]
+    min_cp = 99999999
+    min_co = 99999999
+    min_cp_rt = None
+    min_co_rt = None
+    for rs in transit_map.routesets:
+        rs.generate_shortest_path_pairs()
+        if (rs.operator_cost < min_cp):
+            min_cp_rt = rs
+            min_cp = rs.passenger_cost
+        if (rs.operator_cost < min_co):
+            min_co_rt = rs
+            min_co = rs.operator_cost
+    runThis = True
+    run = 0
+    while run < 100:
+        runThis = False
+        run+=1
+        for i in range(len(transit_map.routesets)):
+            Parent1 = transit_map.routesets[i]
+            p2_id = random.randrange(len(transit_map.routesets))
+            while p2_id == i:
+                p2_id = random.randrange(len(transit_map.routesets))
+            Parent2 = transit_map.routesets[p2_id]
             os = transit_map.crossover(Parent1, Parent2)
             os.repair()
-            for i in os.routes:
-                print([j.id for j in i.path_nodes])
+            print("----------",os.chosen)
+            for op in os.routes:
+                print([j.id for j in op.path_nodes])
+            os.generate_shortest_path_pairs()
+            print("============")
+
             flag = False
             for k in transit_map.routesets:
                 if k == os:
                     flag = True
+                    break
             if flag:
-                print("WOwzazazaza")
                 continue
-            #os.generate_shortest_path_pairs()
+
+            if Parent1.operator_cost > os.operator_cost and Parent1.passenger_cost > os.passenger_cost:
+                transit_map.routesets[i] = os
+                runThis = True
+                continue
+            if Parent2.operator_cost > os.operator_cost and Parent2.passenger_cost > os.passenger_cost:
+                transit_map.routesets[p2_id] = os
+                runThis = True
+                continue
+
+            if os.operator_cost < min_co_rt.operator_cost:
+                min_co_rt = os
+                if Parent1 != min_cp_rt:
+                    transit_map.routesets[i] = os
+                else:
+                    transit_map.routesets[p2_id] = os
+                runThis = True
+                continue
+            if os.passenger_cost < min_cp_rt.passenger_cost:
+                min_cp_rt = os
+                if Parent1 != min_co_rt:
+                    transit_map.routesets[i] = os
+                else:
+                    transit_map.routesets[p2_id] = os
+                runThis = True
+                continue
+
+            if (Parent1.operator_cost == os.operator_cost and Parent1.passenger_cost == os.passenger_cost) or (
+                    Parent2.operator_cost == os.operator_cost and Parent2.passenger_cost == os.passenger_cost):
+                for k in range(len(transit_map.routesets)):
+                    temp = transit_map.routesets[k]
+                    if temp.operator_cost > os.operator_cost and temp.passenger_cost > os.passenger_cost:
+                        transit_map.routesets[k] = os
+                        runThis = True
+                        break
+            if runThis:
+                continue
+    print("Best passenger Cost:")
+    for i in min_cp_rt.routes:
+        print([j.id for j in i.path_nodes])
+    print(min_cp_rt.passenger_cost)
+    print("Best operator Cost:")
+    for i in min_co_rt.routes:
+        print([j.id for j in i.path_nodes])
+    print(min_co_rt.operator_cost)
+
+
+
+
+
+
+
 
