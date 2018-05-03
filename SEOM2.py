@@ -1,6 +1,5 @@
 import random
 import copy
-from functools import reduce
 
 
 class Node(object):
@@ -17,8 +16,7 @@ class RouteSet(object):
             num_routes,
             min_route_len,
             max_route_len,
-            num_nodes,
-            demand):
+            num_nodes):
         self.num_routes = num_routes
         self.min_route_len = min_route_len
         self.max_route_len = max_route_len
@@ -30,9 +28,8 @@ class RouteSet(object):
         self.routes = []
         # Maintains a map of node & routes it is present in
         self.node_map = {}
-        self.demand = demand
-        self.passengerCost=0
-        self.operatorCost=0
+        self.passenger_cost = 0
+        self.operator_cost = 0
 
     def __eq__(self, other):
         # Check if number of routes are same in both
@@ -50,32 +47,44 @@ class RouteSet(object):
 
         return True
 
-    def computePassengerCost(self):
+    def compute_passenger_cost(self):
         numerator = 0
         denominator = 1
-        for i in range(0,self.num_nodes):
-            for j in range(0, self.num_nodes):
-                numerator+=(demand[i][j]*self.shortest_path_times[i][j])
-                denominator+=demand[i][j]
+        for i in range(self.num_nodes):
+            for j in range(self.num_nodes):
+                numerator += (demand[i][j] * self.shortest_path_times[i][j])
+                denominator += demand[i][j]
 
-        self.passengerCost = numerator/denominator
+        self.passenger_cost = numerator/denominator
 
-    def OperatorCost(self):
-        sum=0
+    def operator_cost(self):
+        _sum = 0
         for route in self.routes:
-            for i in range(0,len(route.path_nodes)-1,2):
-                sum+= self.shortest_path_times[i][i+1]
-        self.operatorCost = sum         
+            for i in range(len(route.path_nodes) - 1):
+                _sum += self.shortest_path_times[i][i+1]
+        self.operator_cost = _sum
 
     def recalculate_chosen_nodes(self):
         self.chosen = set()
         self.chosen.update([node.id for route in self.routes for node in route.path_nodes])
 
+    def update_connecting_nodes(self, cur_route, target_node):
+        # If it is already part of another route
+        if self.node_map.get(target_node):
+            # Add it as a connecting node to present route
+            cur_route.connecting_nodes.append(target_node)
+            # Add this node as connecting node in other
+            # common routes if not present
+            for r in self.node_map[target_node]:
+                if target_node in r.connecting_nodes:
+                    continue
+                r.connecting_nodes.append(target_node)
+
     def generate_routeset(self):
         # Create a route on every iteration
         for count in range(self.num_routes):
             # Select random size for route
-            route_len = random.randrange(self.min_route_len, self.max_route_len)
+            route_len = random.randrange(self.min_route_len, self.max_route_len + 1)
 
             if count == 0:
                 # Select the starting node for the first route
@@ -89,6 +98,7 @@ class RouteSet(object):
                 # Create node
                 route = Route(cur_node)
                 route.connecting_nodes.append(cur_node)
+                # TODO: Add to other route too
 
             # Update node map and chosen with new route and node
             self.node_map.setdefault(cur_node.id, []).append(route)
@@ -108,24 +118,24 @@ class RouteSet(object):
                         break
                 else:
                     next_node = random.choice(next_nodes)
-                    # Update node map and chosen with new route and node
                     route.append_to_path_end(next_node)
-                    if self.node_map.get(next_node):
-                        route.connecting_nodes.append(next_node)
-                        for r in self.node_map[next_node]:
-                            r.connecting_nodes.append(next_node)
 
+                    # Update the connecting nodes for all routes related to node
+                    self.update_connecting_nodes(route, next_node)
+
+                    # Update node map and chosen with new route and node
                     self.node_map.setdefault(next_node.id, []).append(route)
                     self.chosen.add(next_node.id)
                     cur_node = next_node
+
         if len(self.chosen) < self.num_nodes:
             self.repair()
             if len(self.chosen) < self.num_nodes:
                 return False
             else:
                 return True
-        return True
 
+        return True
 
     def add_nodes(self):
         # Choose a random number of nodes to add
@@ -137,39 +147,42 @@ class RouteSet(object):
             if len(routes_checked) == len(self.routes):
                 break
 
-            # Select the route not checked till now
+            self._add_nodes(routes_checked)
+            count -= 1
+
+    def _add_nodes(self, routes_checked):
+        # Select the route not checked till now
+        rand_route = self.routes[random.randrange(len(self.routes))]
+        while rand_route in routes_checked:
             rand_route = self.routes[random.randrange(len(self.routes))]
-            while rand_route in routes_checked:
-                rand_route = self.routes[random.randrange(len(self.routes))]
 
-            # Append it to routes checked
-            routes_checked.append(rand_route)
+        # Append it to routes checked
+        routes_checked.append(rand_route)
 
-            # Add nodes at the end/start of the route if possible
-            route_reversed = False
-            # Checking if the length of route is lesser than
-            # max_route_len mentioned by user
-            while len(rand_route.path_nodes) <= self.max_route_len:
-                next_nodes = rand_route.fetch_next_nodes(rand_route.end)
-                if not next_nodes:
-                    # Reverse the route & try adding at the start
-                    if not route_reversed:
-                        rand_route.reverse_route()
-                        route_reversed = True
-                    else:
-                        # Adding at both ends tested, leave
-                        break
+        # Add nodes at the end/start of the route if possible
+        route_reversed = False
+        # Checking if the length of route is lesser than
+        # max_route_len mentioned by user
+        while len(rand_route.path_nodes) <= self.max_route_len:
+            next_nodes = rand_route.fetch_next_nodes(rand_route.end)
+            if not next_nodes:
+                # Reverse the route & try adding at the start
+                if not route_reversed:
+                    rand_route.reverse_route()
+                    route_reversed = True
                 else:
-                    next_node = random.choice(next_nodes)
-                    rand_route.append_to_path_end(next_node)
-                    if self.node_map.get(next_node):
-                        rand_route.connecting_nodes.append(next_node)
-                        for r in self.node_map[next_node]:
-                            r.connecting_nodes.append(next_node)
+                    # Adding at both ends tested, leave
+                    break
+            else:
+                next_node = random.choice(next_nodes)
+                rand_route.append_to_path_end(next_node)
+                if self.node_map.get(next_node):
+                    rand_route.connecting_nodes.append(next_node)
+                    for r in self.node_map[next_node]:
+                        r.connecting_nodes.append(next_node)
 
-                    self.node_map.setdefault(next_node.id, []).append(rand_route)
-                    self.chosen.add(next_node.id)
-                    count -= 1
+                self.node_map.setdefault(next_node.id, []).append(rand_route)
+                self.chosen.add(next_node.id)
 
     def delete_nodes(self):
         # Choose a random number of nodes to add
@@ -194,7 +207,6 @@ class RouteSet(object):
                 # Checking if the length of route is greater than
                 # min_route_len mentioned by user
                 while len(rand_route.path_nodes) >= self.min_route_len:
-                    # TODO: change from here
                     if not self.check_for_node_deletion(rand_route):
                         # Reverse the route & try adding at the start
                         if not route_reversed:
@@ -204,14 +216,22 @@ class RouteSet(object):
                             # Adding at both ends tested, leave
                             break
                     else:
-                        # rand_route.append_to_path_end(next_node)
-                        # self.chosen.add(next_node.id)
+                        rand_route.pop()
+                        self.node_map[rand_route.end.id].remove(rand_route)
+                        rand_route.connecting_nodes.remove(rand_route.end.id)
+                        target_paths = self.node_map[rand_route.end.id]
+                        if target_paths == 1:
+                            target_paths[0].connecting_nodes.remove(rand_route.end.id)
                         count -= 1
 
     def check_for_node_deletion(self, route):
         # Check if the node at route end is duplicated and can be
         # removed without breaking the connectivity of routeset
-        if len(self.node_map[route.end]) <= 1:
+        target_paths = self.node_map[route.end.id]
+        if len(target_paths) <= 1:
+            return False
+
+        if any(map(lambda x: x.connecting_nodes <= 1, target_paths)):
             return False
 
         return True
@@ -219,6 +239,8 @@ class RouteSet(object):
     def swap_routes(self, routeset_to_add, target_route):
         # Add target_route from current one to routeset_to_add
         routeset_to_add.routes.append(target_route)
+        for n in target_route.path_nodes:
+            routeset_to_add.node_map.setdefault(n.id, []).append(target_route)
         routeset_to_add.chosen.update(map(lambda x: x.id, target_route.path_nodes))
 
         # Remove target_route from current one
@@ -232,34 +254,7 @@ class RouteSet(object):
             if len(routes_checked) == len(self.routes):
                 break
 
-            # Select the route not checked till now
-            rand_route = self.routes[random.randrange(self.num_routes)]
-            while rand_route in routes_checked:
-                rand_route = self.routes[random.randrange(self.num_routes)]
-
-            # Append it to routes checked
-            routes_checked.append(rand_route)
-
-            # Add nodes at the end/start of the route if possible
-            route_reversed = False
-            # Checking if the length of route is lesser than
-            # max_route_len mentioned by user
-            while len(rand_route.path_nodes) <= self.max_route_len:
-                next_nodes = rand_route.fetch_next_nodes(rand_route.end)
-                if not next_nodes:
-                    # Reverse the route & try adding at the start
-                    if not route_reversed:
-                        rand_route.reverse_route()
-                        route_reversed = True
-                    else:
-                        # Adding at both ends tested, leave
-                        break
-                else:
-                    next_node = random.choice(next_nodes)
-                    rand_route.append_to_path_end(next_node)
-                    self.node_map.setdefault(next_node.id, []).append(rand_route)
-                    self.chosen.add(next_node.id)
-
+            self._add_nodes(routes_checked)
 
     def generate_shortest_path_pairs(self):
         for k in range(self.num_nodes):
@@ -292,7 +287,6 @@ class Route(object):
     def fetch_next_nodes(self, cur_node):
         options = []
         for n in cur_node.neighbours:
-            # TODO: Check if this works
             if n not in self.path_nodes:
                 options.append(n)
         return options
@@ -325,18 +319,17 @@ class TransitGraph(object):
             num_routes,
             min_route_len,
             max_route_len):
-        count = 0
         # Create an array of routesets
+        count = 0
         while count <= num_routesets:
             rs = RouteSet(
                 num_routes,
                 min_route_len,
                 max_route_len,
-                self.num_nodes,
-                demand)
+                self.num_nodes)
             if rs.generate_routeset():
                 self.routesets.append(rs)
-                count+=1
+                count += 1
 
     @staticmethod
     def pick_best(parent, offspring):
@@ -363,8 +356,7 @@ class TransitGraph(object):
             parent1.num_routes,
             parent1.min_route_len,
             parent1.max_route_len,
-            parent1.num_nodes,
-            demand)
+            parent1.num_nodes)
 
         # Take copies of both parents so as to not manipulate them
         p1 = copy.deepcopy(parent1)
@@ -379,25 +371,23 @@ class TransitGraph(object):
             if len(offspring.routes) % 2 == 1:
                 # Pick the best route available in P2
                 # which is not present in offspring yet
-                best_route = self.pick_best(p2,offspring)
+                best_route = self.pick_best(p2, offspring)
                 while best_route in offspring.routes:
-                    best_route = self.pick_best(p2,offspring)
+                    best_route = self.pick_best(p2, offspring)
+                
                 if best_route:
-                # Remove best_route from parent2 and add to offspring
+                    # Remove best_route from parent2 and add to offspring
                     p2.swap_routes(offspring, best_route)
-                else:
-                    exit(1)
             else:
                 # Pick the best route available in P2
                 # which is not present in offspring yet
-                best_route = self.pick_best(p1,offspring)
+                best_route = self.pick_best(p1, offspring)
                 while best_route in offspring.routes:
-                    best_route = self.pick_best(p1,offspring)
+                    best_route = self.pick_best(p1, offspring)
+
                 if best_route:
                     # Remove best_route from parent1 and add to offspring
                     p1.swap_routes(offspring, best_route)
-                else:
-                    exit(1)
 
         return offspring
 
@@ -460,7 +450,7 @@ if __name__ == '__main__':
     transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
     for rs in transit_map.routesets:
         rs.generate_shortest_path_pairs()
-    for j in range(1,100):
+    for j in range(1, 100):
         for i in transit_map.routesets:
             Parent1 = i
             Parent2 = transit_map.routesets[random.randrange(len(transit_map.routesets))]
