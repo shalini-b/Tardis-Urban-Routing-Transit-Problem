@@ -17,7 +17,8 @@ class RouteSet(object):
             num_routes,
             min_route_len,
             max_route_len,
-            num_nodes):
+            num_nodes,
+            demand):
         self.num_routes = num_routes
         self.min_route_len = min_route_len
         self.max_route_len = max_route_len
@@ -29,6 +30,9 @@ class RouteSet(object):
         self.routes = []
         # Maintains a map of node & routes it is present in
         self.node_map = {}
+        self.demand = demand
+        self.passengerCost=0
+        self.operatorCost=0
 
     def __eq__(self, other):
         # Check if number of routes are same in both
@@ -45,6 +49,23 @@ class RouteSet(object):
             return False
 
         return True
+
+    def computePassengerCost(self):
+        numerator = 0
+        denominator = 1
+        for i in range(0,self.num_nodes):
+            for j in range(0, self.num_nodes):
+                numerator+=(demand[i][j]*self.shortest_path_times[i][j])
+                denominator+=demand[i][j]
+
+        self.passengerCost = numerator/denominator
+
+    def OperatorCost(self):
+        sum=0
+        for route in self.routes:
+            for i in range(0,len(route.path_nodes)-1,2):
+                sum+= self.shortest_path_times[i][i+1]
+        self.operatorCost = sum         
 
     def recalculate_chosen_nodes(self):
         self.chosen = set()
@@ -193,7 +214,7 @@ class RouteSet(object):
         if len(self.node_map[route.end]) <= 1:
             return False
 
-        target_paths = 
+        target_paths =
         if
 
     def swap_routes(self, routeset_to_add, target_route):
@@ -312,7 +333,8 @@ class TransitGraph(object):
                 num_routes,
                 min_route_len,
                 max_route_len,
-                self.num_nodes)
+                self.num_nodes,
+                demand)
             if rs.generate_routeset():
                 self.routesets.append(rs)
                 count+=1
@@ -343,7 +365,8 @@ class TransitGraph(object):
             parent1.num_routes,
             parent1.min_route_len,
             parent1.max_route_len,
-            parent1.num_nodes)
+            parent1.num_nodes,
+            demand)
 
         # Take copies of both parents so as to not manipulate them
         p1 = copy.deepcopy(parent1)
