@@ -59,13 +59,16 @@ class RouteSet(object):
             if count == 0:
                 # Select the starting node for the first route
                 cur_node = nodes[random.randrange(size)]
+                # Create node
+                route = Route(cur_node)
             else:
                 # Select the starting node for an adjoining route
                 # from the list of chosen nodes to ensure connectivity
                 cur_node = nodes[random.choice(list(self.chosen)) - 1]
+                # Create node
+                route = Route(cur_node)
+                route.connecting_nodes.append(cur_node)
 
-            # Create node
-            route = Route(cur_node)
             # Update node map and chosen with new route and node
             self.node_map.setdefault(cur_node.id, []).append(route)
             self.chosen.add(cur_node.id)
@@ -83,11 +86,14 @@ class RouteSet(object):
                         # Adding at both ends tested, leave
                         break
                 else:
-                    # TODO: if we need sequential path nodes even
-                    # after reversing, we need reverse path_nodes list too
                     next_node = random.choice(next_nodes)
                     # Update node map and chosen with new route and node
                     route.append_to_path_end(next_node)
+                    if self.node_map.get(next_node):
+                        route.connecting_nodes.append(next_node)
+                        for r in self.node_map[next_node]:
+                            r.connecting_nodes.append(next_node)
+
                     self.node_map.setdefault(next_node.id, []).append(route)
                     self.chosen.add(next_node.id)
                     cur_node = next_node
@@ -134,9 +140,12 @@ class RouteSet(object):
                         break
                 else:
                     next_node = random.choice(next_nodes)
-                    # TODO: if we need sequential path nodes even
-                    # after reversing, we need reverse path_nodes list too
                     rand_route.append_to_path_end(next_node)
+                    if self.node_map.get(next_node):
+                        rand_route.connecting_nodes.append(next_node)
+                        for r in self.node_map[next_node]:
+                            r.connecting_nodes.append(next_node)
+
                     self.node_map.setdefault(next_node.id, []).append(rand_route)
                     self.chosen.add(next_node.id)
                     count -= 1
@@ -174,8 +183,6 @@ class RouteSet(object):
                             # Adding at both ends tested, leave
                             break
                     else:
-                        # TODO: if we need sequential path nodes even
-                        # after reversing, we need reverse path_nodes list too
                         # rand_route.append_to_path_end(next_node)
                         # self.chosen.add(next_node.id)
                         count -= 1
@@ -186,7 +193,8 @@ class RouteSet(object):
         if len(self.node_map[route.end]) <= 1:
             return False
 
-        
+        target_paths = 
+        if
 
     def swap_routes(self, routeset_to_add, target_route):
         # Add target_route from current one to routeset_to_add
@@ -270,7 +278,6 @@ class Route(object):
         return options
 
     def reverse_route(self):
-        # TODO: do we have to reverse path too?
         self.start, self.end = self.end, self.start
         self.path_nodes.reverse()
 
