@@ -103,13 +103,13 @@ class RouteSet(object):
         routes_checked = []
         while count > 0:
             # Check if all routes are exhausted for addition
-            if len(routes_checked) == self.num_routes:
+            if len(routes_checked) == len(self.routes):
                 break
 
             # Select the route not checked till now
-            rand_route = self.routes[random.randrange(self.num_routes)]
+            rand_route = self.routes[random.randrange(len(self.routes))]
             while rand_route in routes_checked:
-                rand_route = self.routes[random.randrange(self.num_routes)]
+                rand_route = self.routes[random.randrange(len(self.routes))]
 
             # Append it to routes checked
             routes_checked.append(rand_route)
@@ -194,7 +194,39 @@ class RouteSet(object):
         self.recalculate_chosen_nodes()
 
     def repair(self):
-        return
+        routes_checked = []
+        while len(self.routes) < self.num_routes:
+            # Check if all routes are exhausted for addition
+            if len(routes_checked) == len(self.routes):
+                break
+
+            # Select the route not checked till now
+            rand_route = self.routes[random.randrange(self.num_routes)]
+            while rand_route in routes_checked:
+                rand_route = self.routes[random.randrange(self.num_routes)]
+
+            # Append it to routes checked
+            routes_checked.append(rand_route)
+
+            # Add nodes at the end/start of the route if possible
+            route_reversed = False
+            # Checking if the length of route is lesser than
+            # max_route_len mentioned by user
+            while len(rand_route.path_nodes) <= self.max_route_len:
+                next_nodes = rand_route.fetch_next_nodes(rand_route.end)
+                if not next_nodes:
+                    # Reverse the route & try adding at the start
+                    if not route_reversed:
+                        rand_route.reverse_route()
+                        route_reversed = True
+                    else:
+                        # Adding at both ends tested, leave
+                        break
+                else:
+                    next_node = random.choice(next_nodes)
+                    rand_route.append_to_path_end(next_node)
+                    self.node_map.setdefault(next_node.id, []).append(rand_route)
+                    self.chosen.add(next_node.id)
 
 
 class Route(object):
