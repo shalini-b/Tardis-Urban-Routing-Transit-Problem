@@ -237,6 +237,7 @@ class TransitGraph(object):
         self.num_nodes = len(nodes)
         self.demand = demand
         self.travel_times = travel_times
+        self.shortestpathTimes = copy.deepcopy(travel_times)
         self.routesets = []
 
     def create_initial_population(
@@ -274,6 +275,13 @@ class TransitGraph(object):
                     best_val = target_len
 
         return target
+
+    def generateShortestPathPairs(self):
+        for k in range(0, len(self.num_nodes)):
+            for i in range(0, len(self.num_nodes)):
+                for j in range(0, len(self.num_nodes)):
+                    if (self.shortestpathTimes[i][k] + self.shortestpathTimes[k][j] < self.shortestpathTimes[i][j]):
+                        self.shortestpathTimes[i][j] = self.shortestpathTimes[i][k] + self.shortestpathTimes[k][j]
 
     def crossover(self, parent1, parent2):
         # Create a offspring
