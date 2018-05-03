@@ -21,6 +21,7 @@ class RouteSet(object):
         self.num_routes = num_routes
         self.min_route_len = min_route_len
         self.max_route_len = max_route_len
+        self.shortest_path_times = copy.deepcopy(travel_times)
         self.num_nodes = num_nodes
         # Contains IDs of chosen nodes till now
         self.chosen = set()
@@ -182,7 +183,7 @@ class RouteSet(object):
         if len(self.node_map[route.end]) <= 1:
             return False
 
-
+        
 
     def swap_routes(self, routeset_to_add, target_route):
         # Add target_route from current one to routeset_to_add
@@ -228,6 +229,22 @@ class RouteSet(object):
                     self.node_map.setdefault(next_node.id, []).append(rand_route)
                     self.chosen.add(next_node.id)
 
+    def generate_shortest_path_pairs(self):
+        for k in range(self.num_nodes):
+            for i in range(self.num_nodes):
+                for j in range(self.num_nodes):
+                    dist = self.shortest_path_times[i][k] + self.shortest_path_times[k][j]
+                    if dist >= self.shortest_path_times[i][j]:
+                        continue
+
+                    if set(self.node_map[i]).intersection(set(self.node_map[j])):
+                        self.shortest_path_times[i][j] = \
+                            self.shortest_path_times[i][k] + self.shortest_path_times[k][j]
+                    else:
+                        # if i & j are in different paths, add 5 as penalty
+                        self.shortest_path_times[i][j] = \
+                            self.shortest_path_times[i][k] + self.shortest_path_times[k][j] + 5
+
 
 class Route(object):
     def __init__(self, node):
@@ -269,7 +286,6 @@ class TransitGraph(object):
         self.num_nodes = len(nodes)
         self.demand = demand
         self.travel_times = travel_times
-        self.shortestpathTimes = copy.deepcopy(travel_times)
         self.routesets = []
 
     def create_initial_population(
@@ -307,13 +323,6 @@ class TransitGraph(object):
                     best_val = target_len
 
         return target
-
-    def generateShortestPathPairs(self):
-        for k in range(0, len(self.num_nodes)):
-            for i in range(0, len(self.num_nodes)):
-                for j in range(0, len(self.num_nodes)):
-                    if (self.shortestpathTimes[i][k] + self.shortestpathTimes[k][j] < self.shortestpathTimes[i][j]):
-                        self.shortestpathTimes[i][j] = self.shortestpathTimes[i][k] + self.shortestpathTimes[k][j]
 
     def crossover(self, parent1, parent2):
         # Create a offspring
