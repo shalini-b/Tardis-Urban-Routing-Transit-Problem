@@ -29,7 +29,6 @@ class RouteSet(object):
         self.routes = []
         # Maintains a map of node & routes it is present in
         self.node_map = {}
-        self.generate_routeset()
 
     def __eq__(self, other):
         # Check if number of routes are same in both
@@ -63,7 +62,7 @@ class RouteSet(object):
             else:
                 # Select the starting node for an adjoining route
                 # from the list of chosen nodes to ensure connectivity
-                cur_node = nodes[random.choice(list(self.chosen))]
+                cur_node = nodes[random.choice(list(self.chosen)) - 1]
 
             # Create node
             route = Route(cur_node)
@@ -92,10 +91,14 @@ class RouteSet(object):
                     self.node_map.setdefault(next_node.id, []).append(route)
                     self.chosen.add(next_node.id)
                     cur_node = next_node
-
         if len(self.chosen) < self.num_nodes:
-            res = self.repair()
-            return self.routes if res else []
+            self.repair()
+            if len(self.chosen) < self.num_nodes:
+                return False
+            else:
+                return True
+        return True
+
 
     def add_nodes(self):
         # Choose a random number of nodes to add
@@ -196,7 +199,7 @@ class RouteSet(object):
 
     def repair(self):
         routes_checked = []
-        while len(self.routes) < self.num_routes:
+        while len(self.chosen) <= self.num_nodes:
             # Check if all routes are exhausted for addition
             if len(routes_checked) == len(self.routes):
                 break
@@ -229,6 +232,7 @@ class RouteSet(object):
                     self.node_map.setdefault(next_node.id, []).append(rand_route)
                     self.chosen.add(next_node.id)
 
+
     def generate_shortest_path_pairs(self):
         for k in range(self.num_nodes):
             for i in range(self.num_nodes):
@@ -236,8 +240,7 @@ class RouteSet(object):
                     dist = self.shortest_path_times[i][k] + self.shortest_path_times[k][j]
                     if dist >= self.shortest_path_times[i][j]:
                         continue
-
-                    if set(self.node_map[i]).intersection(set(self.node_map[j])):
+                    if set(self.node_map[i+1]).intersection(set(self.node_map[j+1])):
                         self.shortest_path_times[i][j] = \
                             self.shortest_path_times[i][k] + self.shortest_path_times[k][j]
                     else:
@@ -269,6 +272,7 @@ class Route(object):
     def reverse_route(self):
         # TODO: do we have to reverse path too?
         self.start, self.end = self.end, self.start
+        self.path_nodes.reverse()
 
     def append_to_path_end(self, node):
         self.path_nodes.append(node)
@@ -294,15 +298,17 @@ class TransitGraph(object):
             num_routes,
             min_route_len,
             max_route_len):
+        count = 0
         # Create an array of routesets
-        for i in range(num_routesets):
-            self.routesets.append(
-                RouteSet(
-                    num_routes,
-                    min_route_len,
-                    max_route_len,
-                    self.num_nodes)
-            )
+        while count <= num_routesets:
+            rs = RouteSet(
+                num_routes,
+                min_route_len,
+                max_route_len,
+                self.num_nodes)
+            if rs.generate_routeset():
+                self.routesets.append(rs)
+                count+=1
 
     @staticmethod
     def pick_best(parent, offspring):
@@ -390,12 +396,13 @@ if __name__ == '__main__':
                 continue
 
             for j, val in enumerate(row.split()):
-                if val in ['Inf', '0']:
-                    continue
+                if val == 'Inf':
+                    val = 9999
                 travel_times[i][j] = int(val)
                 # TODO: Is it a better idea to just put the ID
                 # Update neighbours of nodes - for nw putting the objects
-                nodes[i].neighbours.append(nodes[j])
+                if val!=9999:
+                    nodes[i].neighbours.append(nodes[j])
             i += 1
 
     with open('MandlDemand.txt') as in_p3:
@@ -406,8 +413,8 @@ if __name__ == '__main__':
                 continue
 
             for j, val in enumerate(row.split()):
-                if val in ['Inf', '0']:
-                    continue
+                if val == 'Inf':
+                    val = 9999
                 demand[i][j] = int(val)
             i += 1
 
@@ -422,4 +429,8 @@ if __name__ == '__main__':
     transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
     for rs in transit_map.routesets:
         rs.generate_shortest_path_pairs()
+
+        for i in rs.routes:
+            print([j.id for j in i.path_nodes])
+        print(travel_times)
         print(rs.shortest_path_times)
