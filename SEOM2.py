@@ -378,9 +378,9 @@ if __name__ == '__main__':
             nodes.append(Node(id + 1, posx, posy))
 
     # Travel time defined from src to dest if applicable, 0 otherwise
-    travel_times = [[0] * size] * size
+    travel_times = [[0 for x in range(size)] for y in range(size)]
     # Signifies demand between two places
-    demand = [[0] * size] * size
+    demand = [[0 for x in range(size)] for y in range(size)]
 
     with open('MandlTravelTimes.txt') as in_p2:
         i = 0
@@ -420,3 +420,6 @@ if __name__ == '__main__':
 
     transit_map = TransitGraph(nodes, demand, travel_times)
     transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
+    for rs in transit_map.routesets:
+        rs.generate_shortest_path_pairs()
+        print(rs.shortest_path_times)
