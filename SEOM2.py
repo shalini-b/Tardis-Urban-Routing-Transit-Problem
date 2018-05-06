@@ -240,8 +240,8 @@ class RouteSet(object):
             # No duplicates
             return False
 
-        # for route in self.routes:
-        #     print([node.id for node in route.path_nodes])
+        for route in self.routes:
+            print([node.id for node in route.path_nodes])
         if any(map(lambda x: len(x.connecting_nodes) <= 1, target_paths)):
             # The end node of this route is the only connection some
             # other path has to the rest of the graph
@@ -252,9 +252,9 @@ class RouteSet(object):
     def swap_routes(self, routeset_to_add, target_route):
         # Add target_route from current one to routeset_to_add
         routeset_to_add.routes.append(target_route)
-        for n in target_route.path_nodes:
-            routeset_to_add.node_map.setdefault(n.id, []).append(target_route)
-        # TODO: update connecting nodes
+        for _node in target_route.path_nodes:
+            self.update_connecting_nodes(target_route, _node)
+            routeset_to_add.node_map.setdefault(_node.id, []).append(target_route)
         routeset_to_add.chosen.update(map(lambda x: x.id, target_route.path_nodes))
 
         # Remove target_route from current one
@@ -380,8 +380,12 @@ class TransitGraph(object):
                 # Pick the best route available in P2
                 # which is not present in offspring yet
                 best_route = self.pick_best(p2, offspring)
-                while best_route in offspring.routes:
+                cnt = 0
+                while best_route in offspring.routes and cnt < 100:
+                    cnt += 1
                     best_route = self.pick_best(p2, offspring)
+                if cnt == 100:
+                    return offspring
 
                 if best_route:
                     # Remove best_route from parent2 and add to offspring
@@ -390,8 +394,12 @@ class TransitGraph(object):
                 # Pick the best route available in P2
                 # which is not present in offspring yet
                 best_route = self.pick_best(p1, offspring)
-                while best_route in offspring.routes:
+                cnt = 0
+                while best_route in offspring.routes and cnt < 100:
+                    cnt += 1
                     best_route = self.pick_best(p1, offspring)
+                if cnt == 100:
+                    return offspring
 
                 if best_route:
                     # Remove best_route from parent1 and add to offspring
@@ -498,12 +506,11 @@ if __name__ == '__main__':
                 if len(offspring.chosen) < offspring.num_nodes:
                     continue
 
-            print("----------", offspring.chosen)
             for op in offspring.routes:
                 print([j.id for j in op.path_nodes])
+            print('----------')
             # Calculate passenger & operator costs
             offspring.generate_shortest_path_pairs()
-            print("============")
 
             # Check if such a Routeset already exists
             flag = False
