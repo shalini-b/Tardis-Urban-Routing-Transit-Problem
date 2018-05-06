@@ -11,17 +11,12 @@ class Node(object):
 
 
 class RouteSet(object):
-    def __init__(
-            self,
-            num_routes,
-            min_route_len,
-            max_route_len,
-            num_nodes):
+    def __init__(self):
         self.num_routes = num_routes
         self.min_route_len = min_route_len
         self.max_route_len = max_route_len
         self.shortest_path_times = copy.deepcopy(travel_times)
-        self.num_nodes = num_nodes
+        self.num_nodes = len(nodes)
         # Contains IDs of chosen nodes till now
         self.chosen = set()
         # Contains route objects for this routeset
@@ -295,8 +290,9 @@ class RouteSet(object):
         if rand % 2 == 1:
             self.add_nodes()
         else:
-            # self.add_nodes()
-            self.delete_nodes()
+            self.add_nodes()
+            # TODO: Fix this
+            # self.delete_nodes()
 
 
 class Route(object):
@@ -334,34 +330,16 @@ class Route(object):
 
 
 class TransitGraph(object):
-    def __init__(
-            self,
-            nodes,
-            demand,
-            travel_times):
-        # NOTE: Do not change the order of nodes in this list
-        self.nodes = nodes
-        self.num_nodes = len(nodes)
-        self.demand = demand
-        self.travel_times = travel_times
+    def __init__(self):
         self.routesets = []
 
-    def create_initial_population(
-            self,
-            num_routesets,
-            num_routes,
-            min_route_len,
-            max_route_len):
+    def create_initial_population(self):
         # Create an array of routesets
         count = 0
         while count <= num_routesets:
-            rs = RouteSet(
-                num_routes,
-                min_route_len,
-                max_route_len,
-                self.num_nodes)
-            if rs.generate_routeset():
-                self.routesets.append(rs)
+            sample_rs = RouteSet()
+            if sample_rs.generate_routeset():
+                self.routesets.append(sample_rs)
                 count += 1
 
     @staticmethod
@@ -385,11 +363,7 @@ class TransitGraph(object):
 
     def crossover(self, parent1, parent2):
         # Create a offspring
-        offspring = RouteSet(
-            parent1.num_routes,
-            parent1.min_route_len,
-            parent1.max_route_len,
-            parent1.num_nodes)
+        offspring = RouteSet()
 
         # Take copies of both parents so as to not manipulate them
         p1 = copy.deepcopy(parent1)
@@ -427,6 +401,7 @@ class TransitGraph(object):
 
 if __name__ == '__main__':
     # List of node objects
+    # NOTE: Do not change the order of nodes in this list
     nodes = []
     with open('MandlCoords.txt') as f:
         # Number of nodes
@@ -442,6 +417,7 @@ if __name__ == '__main__':
     # Signifies demand between two places
     demand = [[0 for x in range(size)] for y in range(size)]
 
+    # Create travel times matrix from one node to another
     with open('MandlTravelTimes.txt') as in_p2:
         i = 0
         for row in in_p2.readlines():
@@ -453,12 +429,12 @@ if __name__ == '__main__':
                 if val == 'Inf':
                     val = 9999
                 travel_times[i][j] = int(val)
-                # TODO: Is it a better idea to just put the ID
-                # Update neighbours of nodes - for nw putting the objects
-                if val!=9999:
+                if val != 9999:
+                    # Update neighbours of nodes - for nw putting the objects
                     nodes[i].neighbours.append(nodes[j])
             i += 1
 
+    # Create demand matrix from one node to another
     with open('MandlDemand.txt') as in_p3:
         i = 0
         for row in in_p3.readlines():
@@ -469,7 +445,7 @@ if __name__ == '__main__':
             for j, val in enumerate(row.split()):
                 if val == 'Inf':
                     val = 9999
-                if val!=9999:
+                if val != 9999:
                     demand[i][j] = int(val)
             i += 1
 
@@ -480,102 +456,112 @@ if __name__ == '__main__':
     # Maximum and minimum number of routes in route set
     min_route_len, max_route_len = list(map(int, input('Input minimum and maximum route length: ').split()))
 
-    transit_map = TransitGraph(nodes, demand, travel_times)
-    transit_map.create_initial_population(num_routesets, num_routes, min_route_len, max_route_len)
-    for rs in transit_map.routesets:
-        rs.generate_shortest_path_pairs()
+    # Create initial population of routesets
+    transit_map = TransitGraph()
+    transit_map.create_initial_population()
+
+    # Find minimum values of passenger cost and operator cost
+    # Find their corresponding routesets
     min_cp = 99999999
     min_co = 99999999
     min_cp_rt = None
     min_co_rt = None
     for rs in transit_map.routesets:
         rs.generate_shortest_path_pairs()
-        if (rs.operator_cost < min_cp):
+        if rs.operator_cost < min_cp:
             min_cp_rt = rs
             min_cp = rs.passenger_cost
-        if (rs.operator_cost < min_co):
+        if rs.operator_cost < min_co:
             min_co_rt = rs
             min_co = rs.operator_cost
+
     runThis = True
-    run = 0
-    while run < 100:
+    while runThis:
         runThis = False
-        run+=1
-        for i in range(len(transit_map.routesets)):
-            Parent1 = transit_map.routesets[i]
-            p2_id = random.randrange(len(transit_map.routesets))
-            while p2_id == i:
-                p2_id = random.randrange(len(transit_map.routesets))
+        for rs_index in range(num_routesets):
+            Parent1 = transit_map.routesets[rs_index]
+
+            # Choose random parent2
+            p2_id = random.randrange(num_routesets)
+            while p2_id == rs_index:
+                p2_id = random.randrange(num_routesets)
+
+            # Create offspring
             Parent2 = transit_map.routesets[p2_id]
-            os = transit_map.crossover(Parent1, Parent2)
-            os.mutate()
-            if len(os.chosen) < os.num_nodes:
-                os.repair()
-                if len(os.chosen) < os.num_nodes:
+            offspring = transit_map.crossover(Parent1, Parent2)
+            offspring.mutate()
+
+            # Validate offspring
+            if len(offspring.chosen) < offspring.num_nodes:
+                offspring.repair()
+                if len(offspring.chosen) < offspring.num_nodes:
                     continue
-            print("----------",os.chosen)
-            for op in os.routes:
-                print([j.id for j in op.path_nodes])
-            os.generate_shortest_path_pairs()
+
+            print("----------", offspring.chosen)
+            print([j.id for op in offspring.routes for j in op.path_nodes])
+            # Calculate passenger & operator costs
+            offspring.generate_shortest_path_pairs()
             print("============")
 
+            # Check if such a Routeset already exists
             flag = False
             for k in transit_map.routesets:
-                if k == os:
+                # TODO: Test this equality
+                if k == offspring:
                     flag = True
                     break
             if flag:
+                # Create another offspring
                 continue
 
-            if Parent1.operator_cost > os.operator_cost and Parent1.passenger_cost > os.passenger_cost:
-                transit_map.routesets[i] = os
+            # Check if offspring is better than any of the parents
+            # If yes, replace them and start over
+            if Parent1.operator_cost > offspring.operator_cost and \
+                    Parent1.passenger_cost > offspring.passenger_cost:
+                transit_map.routesets[rs_index] = offspring
                 runThis = True
                 continue
-            if Parent2.operator_cost > os.operator_cost and Parent2.passenger_cost > os.passenger_cost:
-                transit_map.routesets[p2_id] = os
+            if Parent2.operator_cost > offspring.operator_cost and \
+                    Parent2.passenger_cost > offspring.passenger_cost:
+                transit_map.routesets[p2_id] = offspring
                 runThis = True
                 continue
 
-            if os.operator_cost < min_co_rt.operator_cost:
-                min_co_rt = os
+            # Update the minimum values of operator cost & passenger
+            # cost wrt offspring
+            if offspring.operator_cost < min_co_rt.operator_cost:
+                min_co_rt = offspring
                 if Parent1 != min_cp_rt:
-                    transit_map.routesets[i] = os
+                    transit_map.routesets[rs_index] = offspring
                 else:
-                    transit_map.routesets[p2_id] = os
+                    transit_map.routesets[p2_id] = offspring
                 runThis = True
                 continue
-            if os.passenger_cost < min_cp_rt.passenger_cost:
-                min_cp_rt = os
+            if offspring.passenger_cost < min_cp_rt.passenger_cost:
+                min_cp_rt = offspring
                 if Parent1 != min_co_rt:
-                    transit_map.routesets[i] = os
+                    transit_map.routesets[rs_index] = offspring
                 else:
-                    transit_map.routesets[p2_id] = os
+                    transit_map.routesets[p2_id] = offspring
                 runThis = True
                 continue
 
-            if (Parent1.operator_cost == os.operator_cost and Parent1.passenger_cost == os.passenger_cost) or (
-                    Parent2.operator_cost == os.operator_cost and Parent2.passenger_cost == os.passenger_cost):
-                for k in range(len(transit_map.routesets)):
+            # If the offspring values are same as that of any of the parent's values,
+            # check if any other routeset can be replaced with offspring
+            if any(map(lambda x: x.operator_cost == offspring.operator_cost and
+                    x.passenger_cost == offspring.passenger_cost, [Parent1, Parent2])):
+                for k in range(num_routesets):
                     temp = transit_map.routesets[k]
-                    if temp.operator_cost > os.operator_cost and temp.passenger_cost > os.passenger_cost:
-                        transit_map.routesets[k] = os
+                    if temp.operator_cost > offspring.operator_cost and \
+                            temp.passenger_cost > offspring.passenger_cost:
+                        transit_map.routesets[k] = offspring
                         runThis = True
                         break
-            if runThis:
-                continue
+
+
     print("Best passenger Cost:")
-    for i in min_cp_rt.routes:
-        print([j.id for j in i.path_nodes])
+    print([j.id for i in min_cp_rt.routes for j in i.path_nodes])
     print(min_cp_rt.passenger_cost)
     print("Best operator Cost:")
-    for i in min_co_rt.routes:
-        print([j.id for j in i.path_nodes])
+    print([j.id for i in min_co_rt.routes for j in i.path_nodes])
     print(min_co_rt.operator_cost)
-
-
-
-
-
-
-
-
