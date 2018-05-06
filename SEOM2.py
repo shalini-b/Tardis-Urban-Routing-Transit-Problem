@@ -146,7 +146,7 @@ class RouteSet(object):
         routes_checked = []
         while count > 0:
             # Check if all routes are exhausted for addition
-            if len(routes_checked) == len(self.routes):
+            if len(routes_checked) == num_routes:
                 break
 
             self._add_nodes(routes_checked)
@@ -154,9 +154,11 @@ class RouteSet(object):
 
     def _add_nodes(self, routes_checked):
         # Select the route not checked till now
-        rand_route = self.routes[random.randrange(len(self.routes))]
-        while rand_route in routes_checked:
-            rand_route = self.routes[random.randrange(len(self.routes))]
+        cnt = 0
+        rand_route = self.routes[random.randrange(num_routes)]
+        while rand_route in routes_checked and cnt < num_routes:
+            cnt += 1
+            rand_route = self.routes[random.randrange(num_routes)]
 
         # Append it to routes checked
         routes_checked.append(rand_route)
@@ -197,8 +199,10 @@ class RouteSet(object):
                 break
 
             # Select the route not checked till now
+            cnt = 0
             rand_route = self.routes[random.randrange(self.num_routes)]
-            while rand_route in routes_checked:
+            while rand_route in routes_checked and cnt < num_routes:
+                cnt += 1
                 rand_route = self.routes[random.randrange(self.num_routes)]
 
             # Append it to routes checked
@@ -230,7 +234,7 @@ class RouteSet(object):
                     # Safely delete the end node
                     rand_route.delete_from_path_end()
 
-                    count -= 1
+            count -= 1
 
     def check_for_node_deletion(self, route):
         # Check if the node at route end is duplicated and can be
@@ -240,8 +244,6 @@ class RouteSet(object):
             # No duplicates
             return False
 
-        for route in self.routes:
-            print([node.id for node in route.path_nodes])
         if any(map(lambda x: len(x.connecting_nodes) <= 1, target_paths)):
             # The end node of this route is the only connection some
             # other path has to the rest of the graph
@@ -337,7 +339,7 @@ class TransitGraph(object):
     def create_initial_population(self):
         # Create an array of routesets
         count = 0
-        while count <= num_routesets:
+        while count < num_routesets:
             sample_rs = RouteSet()
             if sample_rs.generate_routeset():
                 self.routesets.append(sample_rs)
@@ -381,7 +383,7 @@ class TransitGraph(object):
                 # which is not present in offspring yet
                 best_route = self.pick_best(p2, offspring)
                 cnt = 0
-                while best_route in offspring.routes and cnt < 100:
+                while best_route in offspring.routes and cnt <= 100:
                     cnt += 1
                     best_route = self.pick_best(p2, offspring)
                 if cnt == 100:
@@ -395,7 +397,7 @@ class TransitGraph(object):
                 # which is not present in offspring yet
                 best_route = self.pick_best(p1, offspring)
                 cnt = 0
-                while best_route in offspring.routes and cnt < 100:
+                while best_route in offspring.routes and cnt <= 100:
                     cnt += 1
                     best_route = self.pick_best(p1, offspring)
                 if cnt == 100:
@@ -485,6 +487,7 @@ if __name__ == '__main__':
             min_co = rs.operator_cost
 
     runThis = True
+    # TODO: Limit this loop?
     while runThis:
         runThis = False
         for rs_index in range(num_routesets):
