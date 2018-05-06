@@ -383,7 +383,7 @@ class TransitGraph(object):
                 # which is not present in offspring yet
                 best_route = self.pick_best(p2, offspring)
                 cnt = 0
-                while best_route in offspring.routes and cnt <= 100:
+                while best_route in offspring.routes and cnt < 100:
                     cnt += 1
                     best_route = self.pick_best(p2, offspring)
                 if cnt == 100:
@@ -397,7 +397,7 @@ class TransitGraph(object):
                 # which is not present in offspring yet
                 best_route = self.pick_best(p1, offspring)
                 cnt = 0
-                while best_route in offspring.routes and cnt <= 100:
+                while best_route in offspring.routes and cnt < 100:
                     cnt += 1
                     best_route = self.pick_best(p1, offspring)
                 if cnt == 100:
