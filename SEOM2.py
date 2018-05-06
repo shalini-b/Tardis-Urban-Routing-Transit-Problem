@@ -201,36 +201,36 @@ class RouteSet(object):
             while rand_route in routes_checked:
                 rand_route = self.routes[random.randrange(self.num_routes)]
 
-                # Append it to routes checked
-                routes_checked.append(rand_route)
+            # Append it to routes checked
+            routes_checked.append(rand_route)
 
-                # Add nodes at the end/start of the route if possible
-                route_reversed = False
-                # Checking if the length of route is greater than
-                # min_route_len mentioned by user
-                while len(rand_route.path_nodes) > self.min_route_len:
-                    if not self.check_for_node_deletion(rand_route):
-                        # Reverse the route & try adding at the start
-                        if not route_reversed:
-                            rand_route.reverse_route()
-                            route_reversed = True
-                        else:
-                            # Adding at both ends tested, leave
-                            break
+            # Add nodes at the end/start of the route if possible
+            route_reversed = False
+            # Checking if the length of route is greater than
+            # min_route_len mentioned by user
+            while len(rand_route.path_nodes) > self.min_route_len:
+                if not self.check_for_node_deletion(rand_route):
+                    # Reverse the route & try adding at the start
+                    if not route_reversed:
+                        rand_route.reverse_route()
+                        route_reversed = True
                     else:
-                        # remove route from node map
-                        # NOTE: we do not need to remove from chosen
-                        self.node_map[rand_route.end.id].remove(rand_route)
+                        # Adding at both ends tested, leave
+                        break
+                else:
+                    # remove route from node map
+                    # NOTE: we do not need to remove from chosen
+                    self.node_map[rand_route.end.id].remove(rand_route)
 
-                        rand_route.connecting_nodes.remove(rand_route.end)
-                        target_paths = self.node_map[rand_route.end.id]
-                        if target_paths == 1:
-                            target_paths[0].connecting_nodes.remove(rand_route.end.id)
+                    rand_route.connecting_nodes.remove(rand_route.end)
+                    target_paths = self.node_map[rand_route.end.id]
+                    if target_paths == 1:
+                        target_paths[0].connecting_nodes.remove(rand_route.end.id)
 
-                        # Safely delete the end node
-                        rand_route.delete_from_path_end()
+                    # Safely delete the end node
+                    rand_route.delete_from_path_end()
 
-                        count -= 1
+                    count -= 1
 
     def check_for_node_deletion(self, route):
         # Check if the node at route end is duplicated and can be
@@ -240,6 +240,8 @@ class RouteSet(object):
             # No duplicates
             return False
 
+        # for route in self.routes:
+        #     print([node.id for node in route.path_nodes])
         if any(map(lambda x: len(x.connecting_nodes) <= 1, target_paths)):
             # The end node of this route is the only connection some
             # other path has to the rest of the graph
@@ -290,9 +292,8 @@ class RouteSet(object):
         if rand % 2 == 1:
             self.add_nodes()
         else:
-            self.add_nodes()
-            # TODO: Fix this
-            # self.delete_nodes()
+            # self.add_nodes()
+            self.delete_nodes()
 
 
 class Route(object):
@@ -498,7 +499,8 @@ if __name__ == '__main__':
                     continue
 
             print("----------", offspring.chosen)
-            print([j.id for op in offspring.routes for j in op.path_nodes])
+            for op in offspring.routes:
+                print([j.id for j in op.path_nodes])
             # Calculate passenger & operator costs
             offspring.generate_shortest_path_pairs()
             print("============")
@@ -506,7 +508,6 @@ if __name__ == '__main__':
             # Check if such a Routeset already exists
             flag = False
             for k in transit_map.routesets:
-                # TODO: Test this equality
                 if k == offspring:
                     flag = True
                     break
@@ -558,10 +559,11 @@ if __name__ == '__main__':
                         runThis = True
                         break
 
-
     print("Best passenger Cost:")
-    print([j.id for i in min_cp_rt.routes for j in i.path_nodes])
+    for i in min_cp_rt.routes:
+        print([j.id for j in i.path_nodes])
     print(min_cp_rt.passenger_cost)
     print("Best operator Cost:")
-    print([j.id for i in min_co_rt.routes for j in i.path_nodes])
+    for i in min_co_rt.routes:
+        print([j.id for j in i.path_nodes])
     print(min_co_rt.operator_cost)
