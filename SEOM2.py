@@ -496,7 +496,6 @@ if __name__ == '__main__':
             min_co = rs.operator_cost
 
     runThis = True
-    # TODO: Limit this loop?
     while runThis:
         runThis = False
         for rs_index in range(num_routesets):
@@ -518,10 +517,6 @@ if __name__ == '__main__':
                 if len(offspring.chosen) < offspring.num_nodes:
                     continue
 
-            for op in offspring.routes:
-                print([j.id for j in op.path_nodes])
-            print('----------')
-            # Calculate passenger & operator costs
             offspring.generate_shortest_path_pairs()
 
             # Check if such a Routeset already exists
@@ -579,10 +574,10 @@ if __name__ == '__main__':
                         break
 
     print("Best passenger Cost:")
-    for i in min_cp_rt.routes:
-        print([j.id for j in i.path_nodes])
+    # for i in min_cp_rt.routes:
+    #     print([j.id for j in i.path_nodes])
     print(min_cp_rt.passenger_cost)
     print("Best operator Cost:")
-    for i in min_co_rt.routes:
-        print([j.id for j in i.path_nodes])
+    # for i in min_co_rt.routes:
+    #     print([j.id for j in i.path_nodes])
     print(min_co_rt.operator_cost)
