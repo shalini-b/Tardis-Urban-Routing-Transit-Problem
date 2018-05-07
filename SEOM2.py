@@ -1,5 +1,6 @@
 import random
 import copy
+import sys
 
 
 class Node(object):
@@ -411,10 +412,18 @@ class TransitGraph(object):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 4:
+        coords_file = sys.argv[1]
+        demand_file = sys.argv[2]
+        traveltimes_file = sys.argv[3]
+    else:
+        print("Invalid Input, please try again")
+        exit()
+
     # List of node objects
     # NOTE: Do not change the order of nodes in this list
     nodes = []
-    with open('MandlCoords.txt') as f:
+    with open(coords_file) as f:
         # Number of nodes
         size = int(f.readline().split()[0])
         for id, coords in enumerate(f.readlines()):
@@ -429,7 +438,7 @@ if __name__ == '__main__':
     demand = [[0 for x in range(size)] for y in range(size)]
 
     # Create travel times matrix from one node to another
-    with open('MandlTravelTimes.txt') as in_p2:
+    with open(traveltimes_file) as in_p2:
         i = 0
         for row in in_p2.readlines():
             # Input has blank rows in between - skipping them
@@ -446,7 +455,7 @@ if __name__ == '__main__':
             i += 1
 
     # Create demand matrix from one node to another
-    with open('MandlDemand.txt') as in_p3:
+    with open(demand_file) as in_p3:
         i = 0
         for row in in_p3.readlines():
             # Input has blank rows in between - skipping them
